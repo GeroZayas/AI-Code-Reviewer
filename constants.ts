@@ -1,0 +1,33 @@
+export const SUPPORTED_LANGUAGES = [
+  'TypeScript',
+  'JavaScript',
+  'Python',
+  'Java',
+  'Go',
+  'Rust',
+  'HTML',
+  'CSS',
+  'SQL',
+  'C++',
+  'C#',
+];
+
+export const LANGUAGE_BY_EXTENSION: Record<string, string> = {
+  'ts': 'TypeScript',
+  'tsx': 'TypeScript',
+  'js': 'JavaScript',
+  'jsx': 'JavaScript',
+  'py': 'Python',
+  'java': 'Java',
+  'go': 'Go',
+  'rs': 'Rust',
+  'html': 'HTML',
+  'css': 'CSS',
+  'sql': 'SQL',
+  'cpp': 'C++',
+  'cxx': 'C++',
+  'cc': 'C++',
+  'h': 'C++',
+  'hpp': 'C++',
+  'cs': 'C#',
+};
