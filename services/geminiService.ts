@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { ReviewIssue } from '../types';
 
@@ -16,7 +15,7 @@ const reviewSchema = {
         properties: {
             line: {
                 type: Type.STRING,
-                description: "The line number(s) where the issue occurs (e.g., '15' or '20-25'). Can be a string to represent a range.",
+                description: "The line number(s) where the issue occurs (e.g., '15' or '20-25'). Can be a string to represent a range. IMPORTANT: Do not group thousands of unrelated lines into one issue; create separate issues for distinct problems.",
             },
             severity: {
                 type: Type.STRING,
@@ -36,60 +35,46 @@ const reviewSchema = {
     },
 };
 
-export const reviewCode = async (code: string, language: string): Promise<ReviewIssue[]> => {
-    // The system instruction sets the context and goal for the AI.
-    // This is more effective than putting all instructions in the main prompt.
-    const systemInstruction = `You are an expert AI code reviewer. Your task is to analyze the provided code snippet for issues related to quality, performance, and correctness.
-For each issue you identify, you must provide feedback in the specified JSON format according to the schema.
-- 'line': The line number or range where the issue is.
-- 'severity': Classify the issue as 'Critical', 'Major', 'Minor', or 'Info'.
-- 'description': Briefly explain the problem.
-- 'suggestion': Provide a clear, actionable way to fix it.
-If the code is perfect and has no issues, you must return an empty array.`;
 
-    // The user's content is the code to be reviewed.
-    const prompt = `Please review this ${language} code:\n\n\`\`\`${language}\n${code}\n\`\`\``;
-
+export const reviewCode = async (code: string, language: string, isDodOptimized: boolean): Promise<ReviewIssue[]> => {
+    let systemInstruction = `You are an expert code reviewer. Analyze the following ${language} code and provide feedback. Identify issues related to code quality, bugs, performance, and best practices. Your response must be in JSON format, adhering to the provided schema. For each issue, provide the line number, severity, a description of the issue, and a concrete suggestion for improvement.`;
+    
+    if (isDodOptimized) {
+        systemInstruction += `
+        \n**SPECIAL INSTRUCTION: Activate Review Optimization with a very strong Focus on Procedural Programming and Data-Oriented Design (DOD).**
+        - **Data Focus:** Prioritize efficient data layout and transformation.
+        - **Data Layout:** Look for opportunities to organize data into contiguous memory blocks (e.g., structs of arrays vs. arrays of structs) to improve sequential processing.
+        - **CPU Cache Optimization:** Identify patterns that cause cache misses (e.g., scattered data access) and suggest alternatives that improve cache utilization.
+        - **Transformations:** Analyze the code in terms of data transformations from input to output, rather than abstract objects. Suggest simplifying logic by focusing on these transformations.
+        - **Separation of Data:** Recommend separating data based on usage patterns rather than bundling it into large, general-purpose objects.
+        - **Performance:** Provide suggestions that can lead to significant speedups, especially in data-intensive parts of the code.
+        - **Simplicity:** Favor simpler, more focused logic over complex object hierarchies.`;
+    }
+    
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: prompt,
+            contents: code,
             config: {
                 systemInstruction: systemInstruction,
                 responseMimeType: "application/json",
                 responseSchema: reviewSchema,
-                temperature: 0.2, // Lower temperature for more deterministic, factual reviews.
+                // The effective token limit for the response is `maxOutputTokens` minus the `thinkingBudget`.
+                maxOutputTokens: 8192,
+                thinkingConfig: { thinkingBudget: 1024 },
             },
         });
 
-        const textResponse = response.text?.trim();
+        const jsonString = response.text.trim();
+        const review = JSON.parse(jsonString) as ReviewIssue[];
+        return review;
 
-        // If the response is empty or just whitespace, assume no issues were found,
-        // which fixes the "Received an empty response" error.
-        if (!textResponse) {
-            console.log("Received an empty response from AI, assuming no issues.");
-            return [];
+    } catch (e) {
+        if (e instanceof SyntaxError) {
+             console.error("Failed to parse JSON response from AI. Raw response text:", (e as any).text);
+             throw new Error("The AI returned a malformed response. Please try again.");
         }
-
-        // With `responseSchema`, the output should be a valid JSON string.
-        // We parse it directly, which is simpler and more reliable.
-        try {
-            const parsedData = JSON.parse(textResponse);
-            if (Array.isArray(parsedData)) {
-                return parsedData as ReviewIssue[];
-            } else {
-                throw new Error("Response was valid JSON but not an array as expected.");
-            }
-        } catch (e) {
-            console.error("Failed to parse JSON response from AI. Raw response:", textResponse, e);
-            throw new Error("The AI returned a malformed response. Please try again.");
-        }
-
-    } catch (error) {
-        console.error("Error calling Gemini API:", error);
-        if (error instanceof Error) {
-            throw new Error(`Error communicating with the AI service: ${error.message}`);
-        }
-        throw new Error("An unknown error occurred while communicating with the AI service.");
+        console.error("Error calling Gemini API:", e);
+        throw new Error("An error occurred while communicating with the AI service.");
     }
 };

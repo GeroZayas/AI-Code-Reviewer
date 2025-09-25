@@ -13,6 +13,8 @@ interface CodeInputProps {
   setLanguage: (language: string) => void;
   onSubmit: () => void;
   isLoading: boolean;
+  isDodOptimized: boolean;
+  setIsDodOptimized: (value: boolean) => void;
 }
 
 export const CodeInput: React.FC<CodeInputProps> = ({
@@ -22,6 +24,8 @@ export const CodeInput: React.FC<CodeInputProps> = ({
   setLanguage,
   onSubmit,
   isLoading,
+  isDodOptimized,
+  setIsDodOptimized,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,7 +110,27 @@ export const CodeInput: React.FC<CodeInputProps> = ({
           spellCheck="false"
         />
       </div>
-      <div className="p-3 border-t border-gray-700">
+      <div className="p-3 border-t border-gray-700 space-y-3">
+        <div className="flex items-center justify-between">
+          <label htmlFor="dod-toggle" className="flex items-center cursor-pointer">
+            <span className="text-sm font-medium text-gray-300">Data-Oriented Design Optimization</span>
+          </label>
+          <button
+            id="dod-toggle"
+            role="switch"
+            aria-checked={isDodOptimized}
+            onClick={() => setIsDodOptimized(!isDodOptimized)}
+            className={`${
+              isDodOptimized ? 'bg-blue-600' : 'bg-gray-600'
+            } relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500`}
+          >
+            <span
+              className={`${
+                isDodOptimized ? 'translate-x-6' : 'translate-x-1'
+              } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+            />
+          </button>
+        </div>
         <button
           onClick={onSubmit}
           disabled={isLoading || !code.trim()}

@@ -13,6 +13,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<Severity | 'All'>('All');
+  const [isDodOptimized, setIsDodOptimized] = useState<boolean>(false);
 
   const handleReview = useCallback(async () => {
     if (!code.trim()) {
@@ -26,7 +27,7 @@ const App: React.FC = () => {
     setSeverityFilter('All'); // Reset filter on new review
 
     try {
-      const result = await reviewCode(code, language);
+      const result = await reviewCode(code, language, isDodOptimized);
       setReview(result);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
@@ -34,7 +35,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [code, language]);
+  }, [code, language, isDodOptimized]);
 
   const handleToggleDone = useCallback((issueIndex: number) => {
     setReview(prevReview => {
@@ -56,6 +57,8 @@ const App: React.FC = () => {
           setLanguage={setLanguage}
           onSubmit={handleReview}
           isLoading={isLoading}
+          isDodOptimized={isDodOptimized}
+          setIsDodOptimized={setIsDodOptimized}
         />
         <ReviewOutput
           review={review}
